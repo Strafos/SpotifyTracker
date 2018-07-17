@@ -10,6 +10,7 @@ from entities import Track
 
 scope = 'user-modify-playback-state user-read-currently-playing'
 
+# My Spotify playlist and user ID
 AT_PLAYLIST = 'spotify:user:1253958435:playlist:6xaWDZ7I9k7rloD8Ptekbf'
 username = '1253958435'
 
@@ -38,24 +39,32 @@ def bucket_by_artists(tracks):
                 artist_map[artist.name] = set([track])
     return artist_map
 
-def filter_map(artist_map):
-    pass
-    # artist_map.items()
-
 def get_connection(username, scope):
+    """Connect to spotify API. Key/Secrets are passed as environmental variables"""
     token = util.prompt_for_user_token(username, scope)
     client = spotipy.Spotify(auth=token)
     return client
 
 def get_random_track(artist_map):
+    """Get random track from a random artist"""
     random_artist = random.choice(list(artist_map.keys()))
     while len(artist_map[random_artist]) < 5:
         random_artist = random.choice(list(artist_map.keys()))
     random_track = random.sample(artist_map[random_artist], 1)
     return random_track
 
+def get_top_tracks(client):
+    tracks = client.current_user_top_tracks(limit=100, time_range="short_term")["items"]
+    for track in tracks:
+        if str(track['artists'][0]['name'].encode('utf-8')).startswith("b'B"):
+            print("%s by %s" % ((track['name'].encode('utf-8')), track['artists'][0]['name'].encode('utf-8')))
+        # print(track['artists'][0]['name'].encode('utf'))
+
 def main():
     client = get_connection(username, scope)
+    # pprint(client.me())
+    get_top_tracks(client)
+    return
     tracks = grab_playlist(client, AT_PLAYLIST)
     artist_map = bucket_by_artists(tracks)
     random_tracks = []
