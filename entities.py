@@ -1,9 +1,9 @@
 class Track():
     def __init__(self, item):
-        self.name = item['track']['name']
-        self.uri = item['track']['uri']
-        self.id = item['track']['id']
-        self.artists = [Artist(artist) for artist in item['track']['artists']]
+        self.name = item.get('track', {}).get('name', "")
+        self.uri = item.get('track', {}).get('uri', "")
+        self.id = item.get('track', {}).get('id', "")
+        self.artists = [Artist(artist) for artist in item.get('track', {}).get('artists', [])]
 
 class Artist():
     def __init__(self, artist):
