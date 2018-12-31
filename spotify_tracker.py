@@ -90,10 +90,10 @@ class PlayerStatus:
                 "album": self._player.get_album(),
                 "id": self._id,
                 "length": int(self._length/1000000),
-                "start_time": now.isoformat()
+                "time": now.isoformat()
             }
             s = json.dumps(obj) + '\n'
-            print(s)
+            # print(s)
             with open(log_path, 'a') as f:
                 f.write(s)
             self._last_print = now
