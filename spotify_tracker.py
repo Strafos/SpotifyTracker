@@ -7,12 +7,26 @@ import sys
 from pprint import pprint
 from datetime import datetime, timedelta
 
-
 import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
 log_path = '/home/zaibo/code/spotify_analysis/songs.log'
+
+"""
+Notes and useful links for future reference:
+- Unsure what GLib is doing. As far as I understand, PlayerCtl is the interface that handles everything for logging
+
+# PlayerCtl methods
+https://lazka.github.io/pgi-docs/Playerctl-1.0/mapping.html
+
+# PlayerCtl github page
+https://github.com/acrisci/playerctl
+with example scripts:
+https://github.com/acrisci/playerctl/tree/master/examples
+
+I couldn't get player.connect() to work (used in example) so using player.on() instead
+"""
 
 
 class PlayerStatus:
