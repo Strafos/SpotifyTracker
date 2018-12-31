@@ -17,7 +17,8 @@ import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
-subprocess.run(["source creds.sh"], shell=True)
+subprocess.run(["source /home/zaibo/code/spotify-scripts/creds.sh"], shell=True)
+
 log_path = os.environ['SPOTIFY_DATA_PATH']
 username = os.environ['SPOTIFY_USERNAME']
 # username = '1253958435'
