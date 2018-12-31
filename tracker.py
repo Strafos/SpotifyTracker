@@ -8,6 +8,7 @@ from pprint import pprint
 import requests
 from datetime import datetime, timedelta
 import os
+import subprocess
 
 import spotipy
 import spotipy.util as util
@@ -16,7 +17,10 @@ import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
-log_path = '/home/zaibo/data/songs.log'
+subprocess.Popen("source creds.sh")
+log_path = os.environ['DATA_PATH']
+# log_path = '/home/zaibo/data/songs.log'
+log_path = os.environ['SPOTIFY_USERNAME']
 username = '1253958435'
 scope = 'user-read-playback-state'
 
