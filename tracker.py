@@ -17,11 +17,10 @@ import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
-subprocess.Popen("source creds.sh")
-log_path = os.environ['DATA_PATH']
-# log_path = '/home/zaibo/data/songs.log'
-log_path = os.environ['SPOTIFY_USERNAME']
-username = '1253958435'
+subprocess.run(["source creds.sh"], shell=True)
+log_path = os.environ['SPOTIFY_DATA_PATH']
+username = os.environ['SPOTIFY_USERNAME']
+# username = '1253958435'
 scope = 'user-read-playback-state'
 
 
@@ -44,6 +43,10 @@ however, this is not supported by Spotify as of 12/31/18
 
 For spotipy, remember to PASTE the URL into terminal (I spent hours trying to debug this
 because my reading comprehension was poor)
+
+Using pip gives spotipy 2.0, to upgrade, run 
+pip install git+https://github.com/plamere/spotipy.git --upgrade
+from https://github.com/plamere/spotipy/issues/337
 """
 
 
