@@ -142,21 +142,17 @@ class PlayerStatus:
         self._last_ev = now
 
         api_data = self.api()
-        foo = api_data['progress_ms']
-        print("before", foo)
         self._end_progress = api_data['progress_ms']
-        # self._start_progress = api_data['progress_ms']
+
         # There's some tricky race conditions because the API and player are out of sync
         # Waiting .5s before doing the API call is a naive heuristic to fix this.
         time.sleep(.5)
-        print("md call")
 
         api_data = self.api()
-        goo = api_data['progress_ms']
-        print("after", goo)
 
-        self.print_state("curr")
+        # self.print_state("curr")
         if self._start_time is None:
+            # Ignore in case player is alredy playing
             if not api_data['is_playing']:
                 return
             # First run of script, must initialize
@@ -254,7 +250,23 @@ class PlayerStatus:
     def _on_exit(self, player):
         self._init_player()
 
+    def round_progress(self):
+        if self._end_progress < 5000:
+            self._end_progress = 0
+        elif abs(self._end_progress - self._length//1000) < 5000:
+            self._end_progress = self_length//1000
+
+        if self._start_progress < 5000:
+            self._start_progress = 0
+        elif abs(self._start_progress - self._length//1000) < 5000:
+            self._start_progress = self_length//1000
+
     def _print_song(self):
+        self.round_progress()
+        duration = self._end_progress - self._start_progress
+        if duration < 0:
+            print("duration less than 0")
+            return
         obj = {
             "title": self._title,
             "artist": self._artist,
@@ -268,7 +280,8 @@ class PlayerStatus:
             "play_state": self._play_state,
             "start_progress": self._start_progress,
             "end_progress": self._end_progress,
-            "end_by": self._end_by
+            "end_by": self._end_by,
+            "duration": duration
         }
         s = json.dumps(obj) + '\n'
         # print(s)
