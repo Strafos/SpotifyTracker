@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import time
-import sys
 import traceback
+import json
+import sys
+from pprint import pprint
 from datetime import datetime, timedelta
 
 
@@ -10,20 +12,20 @@ import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
-MUSIC_ICON = ''
-PAUSE_ICON = ''
+log_path = '/home/zaibo/code/spotify_analysis/songs.log'
 
 
 class PlayerStatus:
     def __init__(self):
         self._player = None
-        self._icon = PAUSE_ICON
+
+        self._artist = None
+        self._title = None
+        self._id = None
+        self._length = None
 
         self._last_artist = None
         self._last_title = None
-
-        self._last_status = ''
-        self._prev_song = ''
         self._last_print = None
 
     def show(self):
@@ -36,7 +38,6 @@ class PlayerStatus:
     def _init_player(self):
         while True:
             try:
-                print("happens")
                 self._player = Playerctl.Player()
                 self._player.on('metadata', self._on_metadata)
                 self._player.on('play', self._on_play)
@@ -44,45 +45,57 @@ class PlayerStatus:
                 self._player.on('exit', self._on_exit)
                 break
 
-            except:
-                self._print_flush('')
+            except Exception as e:
+                # self._print_flush('')
+                # print("exception")
+                print(e)
                 time.sleep(2)
 
     def _on_metadata(self, player, e):
-        print(e.keys())
-        if 'xesam:artist' in e.keys() and 'xesam:title' in e.keys():
-            self._artist = e['xesam:artist'][0]
+        # pprint(e.keys())
+        # pprint(e)
+        if 'xesam:artist' in e.keys() and 'xesam:title' in e.keys() and 'mpris:trackid' in e.keys() and 'mpris:length' in e.keys():
+            self._artist = e['xesam:artist']
             self._title = e['xesam:title']
+            self._id = e['mpris:trackid']
+            self._length = e['mpris:length']
+            # print(e['xesam:artist'], e['xesam:title'], e['mpris:trackid'],
+            #       e['mpris:length'], e['xesam:trackNumber'])
 
-            self._print_song()
+            # self._print_song()
 
     def _on_play(self, player):
         self._print_song()
 
     def _on_pause(self, player):
-        self._print_song()
+        # self._print_song()
+        pass
 
     def _on_exit(self, player):
         self._init_player()
 
     def _print_song(self):
         now = datetime.now()
+
         if self._last_print is None or (now - self._last_print > timedelta(milliseconds=800)):
-            # print("first print", self._last_print is None)
             # if self._last_print:
-                # print("delta in prints", now - self._last_print)
-                # print("100ms", timedelta(milliseconds=100))
-                # print("delta in ms", (now - self._last_print).total_microseconds())
-                # print("GE 100ms", now - self._last_print >
-                #       timedelta(milliseconds=100))
-            curr_song = '{} - {}\n'.format(self._artist, self._title)
+            #     print(now - self._last_print)
+            obj = {
+                title: self._title,
+                artist: self._artist,
+                album: self._player.get_album(),
+                id: self._id,
+                length: self._length,
+            }
+            s = json.dumps(obj)
+            with open(log_path, 'a') as f:
+                f.write(curr_song)
+            # curr_song = '{}|{}|{}|{}|{}\n'.format(
+            #     self._title, self._artist, self._id, self._length, self._player.get_album())
             print(curr_song)
             self._last_print = now
-        # traceback.print_stack(file=sys.stdout)
-        # with open('/home/zaibo/code/spotify_analysis/songs.log', 'a') as f:
-        #     if curr_song != self._prev_song:
-        #         f.write(curr_song)
-        #     self._prev_song = curr_song
+            # traceback.print_stack(file=sys.stdout)
+
         return
 
 
