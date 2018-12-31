@@ -23,6 +23,7 @@ class PlayerStatus:
         self._title = None
         self._id = None
         self._length = None
+        self._start_time = None
 
         self._last_artist = None
         self._last_title = None
@@ -46,23 +47,14 @@ class PlayerStatus:
                 break
 
             except Exception as e:
-                # self._print_flush('')
-                # print("exception")
-                print(e)
                 time.sleep(2)
 
     def _on_metadata(self, player, e):
-        # pprint(e.keys())
-        # pprint(e)
         if 'xesam:artist' in e.keys() and 'xesam:title' in e.keys() and 'mpris:trackid' in e.keys() and 'mpris:length' in e.keys():
             self._artist = e['xesam:artist']
             self._title = e['xesam:title']
             self._id = e['mpris:trackid']
             self._length = e['mpris:length']
-            # print(e['xesam:artist'], e['xesam:title'], e['mpris:trackid'],
-            #       e['mpris:length'], e['xesam:trackNumber'])
-
-            # self._print_song()
 
     def _on_play(self, player):
         self._print_song()
@@ -78,25 +70,20 @@ class PlayerStatus:
         now = datetime.now()
 
         if self._last_print is None or (now - self._last_print > timedelta(milliseconds=800)):
-            # if self._last_print:
-            #     print(now - self._last_print)
             obj = {
-                title: self._title,
-                artist: self._artist,
-                album: self._player.get_album(),
-                id: self._id,
-                length: self._length,
+                "title": self._title,
+                "artist": self._artist,
+                "album": self._player.get_album(),
+                "id": self._id,
+                "length": int(self._length/1000000),
+                "start_time": now.isoformat()
             }
-            s = json.dumps(obj)
+            s = json.dumps(obj) + '\n'
+            print(s)
             with open(log_path, 'a') as f:
-                f.write(curr_song)
-            # curr_song = '{}|{}|{}|{}|{}\n'.format(
-            #     self._title, self._artist, self._id, self._length, self._player.get_album())
-            print(curr_song)
+                f.write(s)
             self._last_print = now
             # traceback.print_stack(file=sys.stdout)
-
-        return
 
 
 PlayerStatus().show()
