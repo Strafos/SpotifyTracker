@@ -251,15 +251,16 @@ class PlayerStatus:
         self._init_player()
 
     def round_progress(self):
+        """Round progress_ms to song beginning or end if relevant"""
         if self._end_progress < 5000:
             self._end_progress = 0
         elif abs(self._end_progress - self._length//1000) < 5000:
-            self._end_progress = self_length//1000
+            self._end_progress = self._length//1000
 
         if self._start_progress < 5000:
             self._start_progress = 0
         elif abs(self._start_progress - self._length//1000) < 5000:
-            self._start_progress = self_length//1000
+            self._start_progress = self._length//1000
 
     def _print_song(self):
         self.round_progress()
