@@ -88,7 +88,13 @@ class PlayerStatus:
                 time.sleep(2)
 
     def api(self):
-        return self._client.current_playback()
+        try:
+            return self._client.current_playback()
+        except SpotifyException as e:
+            print("Auth token expired")
+            token = util.prompt_for_user_token(username, scope)
+            self._client = spotipy.Spotify(auth=token)
+            return self._client.current_playback()
 
     def _reset_state(self):
         self._artist = None
@@ -118,7 +124,9 @@ class PlayerStatus:
             "start_time": self._start_time,
             "shuffle_state": self._shuffle_state,
             "repeat_state": self._repeat_state,
-            "play_state": self._play_state
+            "play_state": self._play_state,
+            "start_progress": self._start_progress,
+            "end_progress": self._end_progress,
         }
         print(s)
         pprint(obj)
@@ -126,18 +134,26 @@ class PlayerStatus:
     def _on_metadata(self, player, e):
         # Deduplicate metadata by 800ms calls
         now = datetime.now()
-        if self._last_ev:
-            print(now-self._last_ev, now - self._last_ev <=
-                  timedelta(milliseconds=800))
-        if self._last_ev and (now - self._last_ev <= timedelta(milliseconds=800)):
-            print("deduped")
+        # if self._last_ev:
+        #     print(now-self._last_ev, now - self._last_ev <=
+        #           timedelta(milliseconds=800))
+        if self._last_ev and (now - self._last_ev <= timedelta(milliseconds=1000)):
             return
         self._last_ev = now
 
+        api_data = self.api()
+        foo = api_data['progress_ms']
+        print("before", foo)
+        self._end_progress = api_data['progress_ms']
+        # self._start_progress = api_data['progress_ms']
+        # There's some tricky race conditions because the API and player are out of sync
+        # Waiting .5s before doing the API call is a naive heuristic to fix this.
         time.sleep(.5)
         print("md call")
 
         api_data = self.api()
+        goo = api_data['progress_ms']
+        print("after", goo)
 
         self.print_state("curr")
         if self._start_time is None:
@@ -157,7 +173,8 @@ class PlayerStatus:
             # self._repeat_state = api_data.get('repeat_state', False)
             self._play_state = api_data['is_playing']
             # self._play_state = api_data.get('is_playing', False)
-            self._start_progress = api_data['progress_ms']
+            self._start_progress = self._end_progress
+            # self._start_progress = api_data['progress_ms']
             self._start_time = now.isoformat()
         else:
             if api_data['shuffle_state'] != self._shuffle_state:
@@ -176,7 +193,7 @@ class PlayerStatus:
                 # Record a log and reset state
                 print("paused")
                 self._end_by = "pause"
-                self._end_progress = api_data['progress_ms']
+                # self._end_progress = api_data['progress_ms']
                 self._print_song()
                 self._reset_state()
             elif self._id != e['mpris:trackid']:
@@ -185,7 +202,7 @@ class PlayerStatus:
                 # Assume previous track was played from start_time to completion
                 # Update state to current song
                 print("new song")
-                self._end_progress = api_data['progress_ms']
+                # self._end_progress = api_data['progress_ms']
                 self._end_by = "new song"
                 self._print_song()
 
@@ -197,14 +214,15 @@ class PlayerStatus:
                 self._device = api_data.get('device', {}).get('name', '')
                 self._shuffle_state = api_data['shuffle_state']
                 self._repeat_state = api_data['repeat_state']
-                self._progress = api_data['progress_ms']
+                self._start_progress = api_data['progress_ms']
+                # self._start_progress = self._end_progress
                 self._start_time = datetime.now().isoformat()
             elif self._id == e['mpris:trackid']:
                 # Event was track was repeated
                 # Record log for the track and update time
                 print("same song on repeat")
                 self._end_by = "same song on repeat"
-                self._end_progress = api_data['progress_ms']
+                # self._end_progress = api_data['progress_ms']
                 self._print_song()
 
                 self._artist = e['xesam:artist']
@@ -215,12 +233,11 @@ class PlayerStatus:
                 self._device = api_data.get('device', {}).get('name', '')
                 self._shuffle_state = api_data['shuffle_state']
                 self._repeat_state = api_data['repeat_state']
-                self._progress = api_data['progress_ms']
+                self._start_progress = api_data['progress_ms']
+                # self._start_progress = self._end_progress
                 self._start_time = datetime.now().isoformat()
-            else:
-                print("skip??")
-        self.print_state("new")
-        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+        # self.print_state("new")
+        # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
     def _on_play(self, player):
         # self._print_song()
@@ -250,7 +267,7 @@ class PlayerStatus:
             "repeat_state": self._repeat_state,
             "play_state": self._play_state,
             "start_progress": self._start_progress,
-            "end_process": self._end_progress,
+            "end_progress": self._end_progress,
             "end_by": self._end_by
         }
         s = json.dumps(obj) + '\n'
