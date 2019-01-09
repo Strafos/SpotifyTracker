@@ -8,6 +8,7 @@ from pprint import pprint
 import requests
 from datetime import datetime, timedelta
 import os
+import subprocess
 
 import spotipy
 import spotipy.util as util
@@ -17,8 +18,11 @@ import gi
 gi.require_version('Playerctl', '1.0')
 from gi.repository import Playerctl, GLib
 
-log_path = '/home/zaibo/data/songs.log'
-username = '1253958435'
+subprocess.run(
+    ["source /home/zaibo/code/spotify-scripts/creds.sh"], shell=True)
+
+log_path = os.environ['SPOTIFY_DATA_PATH']
+username = os.environ['SPOTIFY_USERNAME']
 scope = 'user-read-playback-state'
 
 
@@ -57,6 +61,12 @@ Issue #2 | 1/08
 Spotify token expires, need new token
 
 We can throw Exception on SpotifyException and restart the script entirely?
+
+---
+
+Using pip gives spotipy 2.0, to upgrade, run 
+pip install git+https://github.com/plamere/spotipy.git --upgrade
+from https://github.com/plamere/spotipy/issues/337
 """
 
 
