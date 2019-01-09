@@ -72,8 +72,20 @@ pip install git+https://github.com/plamere/spotipy.git --upgrade
 from https://github.com/plamere/spotipy/issues/337
 """
 
+"""
+Overall workflow:
+1. Listen for event that can be triggered by new song, seeking, 
+   setting shuffle, setting repeat, pause/play
+2. This inital event records down state, excluding things like end time
+3. The track is assumed to be playing until the next event
+4. On a second event, we assume the track has ended for some reason
+   (with exception of setting shuffle/repeat)
+   Record end time and duration to fill all data and send a log
+   Then, record the new state and repeat 4.
+"""
 
-class PlayerStatus:
+
+class Tracker:
     def __init__(self):
         self._player = None
 
@@ -179,11 +191,11 @@ class PlayerStatus:
 
         api_data = self.api()
 
-        # self.print_state("curr")
         if self._start_time is None:
             # Ignore in case player is alredy playing
             if not api_data['is_playing']:
                 return
+
             # First run of script, must initialize
             print("init", datetime.now().isoformat())
             self._artist = e['xesam:artist']
@@ -193,13 +205,9 @@ class PlayerStatus:
             self._length = e['mpris:length']
             self._device = api_data.get('device', {}).get('name', '')
             self._shuffle_state = api_data['shuffle_state']
-            # self._shuffle_state = api_data.get('shuffle_state', False)
             self._repeat_state = api_data['repeat_state']
-            # self._repeat_state = api_data.get('repeat_state', False)
             self._play_state = api_data['is_playing']
-            # self._play_state = api_data.get('is_playing', False)
             self._start_progress = self._end_progress
-            # self._start_progress = api_data['progress_ms']
             self._start_time = now
         else:
             if api_data['shuffle_state'] != self._shuffle_state:
@@ -226,7 +234,6 @@ class PlayerStatus:
                 # Assume previous track was played from start_time to completion
                 # Update state to current song
                 print("new song", datetime.now().isoformat())
-                # self._end_progress = api_data['progress_ms']
                 self._end_by = "new song"
                 self._print_song()
 
@@ -246,7 +253,7 @@ class PlayerStatus:
                 # Record log for the track and update time
                 print("same song on repeat", datetime.now().isoformat())
                 self._end_by = "same song on repeat"
-                # self._end_progress = api_data['progress_ms']
+
                 self._print_song()
 
                 self._artist = e['xesam:artist']
@@ -258,10 +265,7 @@ class PlayerStatus:
                 self._shuffle_state = api_data['shuffle_state']
                 self._repeat_state = api_data['repeat_state']
                 self._start_progress = api_data['progress_ms']
-                # self._start_progress = self._end_progress
                 self._start_time = datetime.now()
-        # self.print_state("new")
-        # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
     def _on_play(self, player):
         # We detect pause state from API rather than PlayerCTL so this function
@@ -315,9 +319,8 @@ class PlayerStatus:
         }
         s = json.dumps(obj) + '\n'
 
-        # print(s)
         with open(log_path, 'a') as f:
             f.write(s)
 
 
-PlayerStatus().show()
+Tracker().show()
