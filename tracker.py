@@ -58,11 +58,14 @@ Instead of calculating song progress, we can estimate it using duration and star
 ---
 
 Issue #2 | 1/08
-Spotify token expires, need new token
+For unknown reason, on metadata is called in the middle of the song
+Script recognizes these as a "same song on repeat" event even though
+nothing happened.
 
-We can throw Exception on SpotifyException and restart the script entirely?
+Still unclear how to recreate this.
 
 ---
+
 
 Using pip gives spotipy 2.0, to upgrade, run 
 pip install git+https://github.com/plamere/spotipy.git --upgrade
@@ -92,7 +95,7 @@ class PlayerStatus:
         self._start_progress = None
         self._end_by = None
 
-        self._last_ev = None
+        self._last_event = None
 
     def show(self):
         self._init_player()
@@ -124,6 +127,10 @@ class PlayerStatus:
             return self._client.current_playback()
 
     def _reset_state(self):
+        # On pause, we want to reset pause
+        # The reason we don't use the _on_pause function
+        # is because we detect pause state from API
+        # rather than PlayerCTL
         self._artist = None
         self._title = None
         self._album = None
@@ -139,7 +146,7 @@ class PlayerStatus:
         self._last_artist = None
         self._last_title = None
         self._last_print = None
-        self._last_ev = None
+        self._last_event = None
 
     def print_state(self, s=""):
         obj = {
@@ -161,15 +168,10 @@ class PlayerStatus:
     def _on_metadata(self, player, e):
         # Deduplicate metadata by 800ms calls
         now = datetime.now()
-        # if self._last_ev:
-        #     print(now-self._last_ev, now - self._last_ev <=
-        #           timedelta(milliseconds=800))
-        if self._last_ev and (now - self._last_ev <= timedelta(milliseconds=1000)):
-            return
-        self._last_ev = now
 
-        api_data = self.api()
-        self._end_progress = api_data['progress_ms']
+        if self._last_event and (now - self._last_event <= timedelta(milliseconds=1000)):
+            return
+        self._last_event = now
 
         # There's some tricky race conditions because the API and player are out of sync
         # Waiting .5s before doing the API call is a naive heuristic to fix this.
@@ -262,15 +264,13 @@ class PlayerStatus:
         # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
     def _on_play(self, player):
-        # self._print_song()
-        # print("set play to true")
-        # self._play_state = True
+        # We detect pause state from API rather than PlayerCTL so this function
+        # is not used
         pass
 
     def _on_pause(self, player):
-        # self._print_song()
-        # print("set play to false")
-        # self._play_state = False
+        # We detect pause state from API rather than PlayerCTL so this function
+        # is not used
         pass
 
     def _on_exit(self, player):
