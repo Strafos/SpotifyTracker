@@ -11,6 +11,7 @@ import os
 
 import spotipy
 import spotipy.util as util
+from spotipy.client import SpotifyException
 
 import gi
 gi.require_version('Playerctl', '1.0')
@@ -40,6 +41,22 @@ however, this is not supported by Spotify as of 12/31/18
 
 For spotipy, remember to PASTE the URL into terminal (I spent hours trying to debug this
 because my reading comprehension was poor)
+
+Issue #1 | 1/08
+After testing on server laptop, there's an async issue:
+- Player goes to next song
+- Playerctl listens to an event
+- Script makes a spotify API call, but by this time, it's too late, 
+progress is on the next song instead of the end the current song.
+
+Instead of calculating song progress, we can estimate it using duration and start time.
+
+---
+
+Issue #2 | 1/08
+Spotify token expires, need new token
+
+We can throw Exception on SpotifyException and restart the script entirely?
 """
 
 
@@ -156,7 +173,7 @@ class PlayerStatus:
             if not api_data['is_playing']:
                 return
             # First run of script, must initialize
-            print("init")
+            print("init", datetime.now().isoformat())
             self._artist = e['xesam:artist']
             self._album = self._player.get_album()
             self._title = e['xesam:title']
@@ -171,23 +188,22 @@ class PlayerStatus:
             # self._play_state = api_data.get('is_playing', False)
             self._start_progress = self._end_progress
             # self._start_progress = api_data['progress_ms']
-            self._start_time = now.isoformat()
+            self._start_time = now
         else:
             if api_data['shuffle_state'] != self._shuffle_state:
                 # Event was shuffle state change
                 # Update the shuffle state
-                print("shuffle change", self._shuffle_state,
-                      api_data.get('shuffle_state'))
+                print("shuffle change", datetime.now().isoformat())
                 self._shuffle_state = api_data['shuffle_state']
             elif api_data.get('repeat_state') != self._repeat_state:
                 # Event was repeat state change
                 # Update the repeat state
-                print("repeat state")
+                print("repeat state", datetime.now().isoformat())
                 self._repeat_state = api_data.get('repeat_state', False)
             elif self._play_state and not api_data.get('is_playing'):
                 # Event was play -> pause
                 # Record a log and reset state
-                print("paused")
+                print("paused", datetime.now().isoformat())
                 self._end_by = "pause"
                 # self._end_progress = api_data['progress_ms']
                 self._print_song()
@@ -197,7 +213,7 @@ class PlayerStatus:
                 # Record log for previous track
                 # Assume previous track was played from start_time to completion
                 # Update state to current song
-                print("new song")
+                print("new song", datetime.now().isoformat())
                 # self._end_progress = api_data['progress_ms']
                 self._end_by = "new song"
                 self._print_song()
@@ -212,11 +228,11 @@ class PlayerStatus:
                 self._repeat_state = api_data['repeat_state']
                 self._start_progress = api_data['progress_ms']
                 # self._start_progress = self._end_progress
-                self._start_time = datetime.now().isoformat()
+                self._start_time = datetime.now()
             elif self._id == e['mpris:trackid']:
                 # Event was track was repeated
                 # Record log for the track and update time
-                print("same song on repeat")
+                print("same song on repeat", datetime.now().isoformat())
                 self._end_by = "same song on repeat"
                 # self._end_progress = api_data['progress_ms']
                 self._print_song()
@@ -231,7 +247,7 @@ class PlayerStatus:
                 self._repeat_state = api_data['repeat_state']
                 self._start_progress = api_data['progress_ms']
                 # self._start_progress = self._end_progress
-                self._start_time = datetime.now().isoformat()
+                self._start_time = datetime.now()
         # self.print_state("new")
         # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
@@ -250,69 +266,48 @@ class PlayerStatus:
     def _on_exit(self, player):
         self._init_player()
 
-    def round_progress(self):
+    def round_progress(self, progress):
         """Round progress_ms to song beginning or end if relevant"""
-        if self._end_progress < 5000:
-            self._end_progress = 0
-        elif abs(self._end_progress - self._length//1000) < 5000:
-            self._end_progress = self._length//1000
-
-        if self._start_progress < 5000:
-            self._start_progress = 0
-        elif abs(self._start_progress - self._length//1000) < 5000:
-            self._start_progress = self._length//1000
+        if progress < 5000:
+            return 0
+        elif abs(progress - self._length//1000) < 5000:
+            return self._length//1000
+        else:
+            return int(round(progress))
 
     def _print_song(self):
-        self.round_progress()
-        duration = self._end_progress - self._start_progress
-        if duration < 0:
-            print("duration less than 0")
-            return
+        # Round start progress
+        self._start_progress = self.round_progress(self._start_progress)
+
+        # Get duration in ms using diff in start_time and now
+        now = datetime.now()
+        duration = int(round((now - self._start_time).total_seconds() * 1000))
+
+        # Round end progress
+        end_progress = self.round_progress(self._start_progress + duration)
+
+        # Create log obj
         obj = {
             "title": self._title,
             "artist": self._artist,
             "album": self._album,
             "id": self._id,
-            "length": int(self._length/1000000),
-            "start_time": self._start_time,
-            "end_time": datetime.now().isoformat(),
+            "length": int(self._length/1000),
+            "start_time": self._start_time.isoformat(),
+            "end_time": now.isoformat(),
             "shuffle_state": self._shuffle_state,
             "repeat_state": self._repeat_state,
             "play_state": self._play_state,
             "start_progress": self._start_progress,
-            "end_progress": self._end_progress,
+            "end_progress": end_progress,
             "end_by": self._end_by,
             "duration": duration
         }
         s = json.dumps(obj) + '\n'
+
         # print(s)
         with open(log_path, 'a') as f:
             f.write(s)
 
-
-# url = 'https://api.spotify.com/v1/me/player'
-# token = os.environ['SPOTIFY_AUTH']
-# response = requests.get(url,
-#                         headers={'Content-Type': 'application/json',
-#                                  'Authorization': 'Bearer {}'.format(token)})
-# json_data = json.loads(response.text)
-# print(json_data)
-
-# url = 'https://accounts.spotify.com/authorize'
-# token = os.environ['SPOTIFY_AUTH']
-# response = requests.get(url,
-#                         headers={'Content-Type': 'application/json',
-#                                  'Authorization': 'Bearer {}'.format(token)})
-# json_data = json.loads(response.text)
-# print(json_data)
-
-# id = '7cb030cf04a240af9eaa49d7d06dcfce'
-# redir = 'https://localhost:3000/'
-# scope = 'user-read-playback-state'
-# auth_url = 'https://accounts.spotify.com/authorize?client_id={}&response_type=code&redirect_uri={}&scope={}'.format(
-#     id, redir, scope)
-
-# response = requests.get(auth_url, headers={'Content-Type': 'application/json'})
-# print(response.text)
 
 PlayerStatus().show()
