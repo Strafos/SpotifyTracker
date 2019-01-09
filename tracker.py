@@ -185,6 +185,9 @@ class Tracker:
             return
         self._last_event = now
 
+        api_data = self.api()
+        self._end_progress = api_data['progress_ms']
+
         # There's some tricky race conditions because the API and player are out of sync
         # Waiting .5s before doing the API call is a naive heuristic to fix this.
         time.sleep(.5)
