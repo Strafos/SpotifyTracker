@@ -2,8 +2,8 @@
 
 ## Dependencies
 
-[spotipy](https://github.com/plamere/spotipy)
-[PlayerCtl](https://github.com/acrisci/playerctl)
+- [spotipy](https://github.com/plamere/spotipy)
+- [PlayerCtl](https://github.com/acrisci/playerctl)
 
 ## tracker
 
