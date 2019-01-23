@@ -82,6 +82,10 @@ Overall workflow:
    (with exception of setting shuffle/repeat)
    Record end time and duration to fill all data and send a log
    Then, record the new state and repeat 4.
+
+The Spotify player is unreliable. Sometimes, it does not sync up
+However, if the client is restarted, it will sync. So we need a thread that
+opens and closes the spotify client every 30 minutes
 """
 
 
